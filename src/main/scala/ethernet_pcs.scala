@@ -20,29 +20,33 @@ case class EthernetPCSParams(
 /* 
     Signals are based on the 802.3ab-1999 spec page 23.
 */
-class EthernetPCSIO() extends Bundle {
+/* 
+    Signals are based on the 802.3ab-1999 spec page 18 & 23.
+*/
+class EthernetPCSTopIO() extends Bundle {
     
     // Input
-    val gtx_clk = Input(UInt(1.W))
-    val txd = Input(UInt(8.W))
-    val tx_en = Input(UInt(1.W))
-    val tx_er = Input(UInt(1.W))
-    val pma_txmode_indicate = Input(UInt(1.W))
-    val pma_config_indicate = Input(UInt(1.W))
-    val pma_unidata_indicate = Input(UInt(1.W))
-    val pma_rxstatus_indicate = Input(UInt(1.W))
-    val pma_reset_indicate = Input(UInt(1.W))
+    val gtx_clk = Input(Bool())                         // 1000T TX Clock
+    val txd = Input(UInt(8.W))                          // TX Data
+    val tx_en = Input(Bool())                           // TX Enable
+    val tx_er = Input(Bool())                           // TX Error
+    val rx_symb_vector = Input(Vec(4, UInt(3.W)))       // Quinary symbols from PMA
+    val tx_mode = Intput(UInt(2.W))                     // Indicates sequence of code-groups the PCS should be transmitting
+    val config = Input(Bool())                          // Indicates whether the PHY must operate as a MASTER PHY or as a SLAVE PHY
+    val pcs_reset = Input(Bool())                       // PCS Reset Signal
+    val loc_rcvr_status = Input(Bool())                 // Link reliability OK or NOT_OK
+    val link_status = Input(Bool())                     // Link status from link monitor
 
     // Output
-    val col = Ouput(UInt(1.W))
-    val crs = Ouput(UInt(1.W))
-    val rx_clk = Ouput(UInt(1.W))
-    val rxd = Ouput(UInt(8.W))
-    val rx_dv = Ouput(UInt(1.W))
-    val rx_er = Ouput(UInt(1.W))
-    val pma_unidata_request = Ouput(UInt(1.W))
-    val pma_remrxstatus_request = Ouput(UInt(1.W))
-    val pma_scrstatus_request = Ouput(UInt(1.W))
+    val col = Output(Bool())                             // Indications collision
+    val crs = Output(Bool())                             // MAC uses for deferral in half duplex mode
+    val rx_clk = Output(Bool())                          // RX Clock
+    val rxd = Output(UInt(8.W))                          // RX Data
+    val rx_dv = Output(Bool())                           // RX Data Valid
+    val rx_er = Output(Bool())                           // RX Data Error
+    val tx_symb_vector = Output(Vec(4, UInt(3.W)))      // Quinary symbols to PMA
+    val rem_rcvr_status = Output(Bool())                 // Indicate the status of the receive link at the remote PHY
+    val scr_status = Output(Bool())                      // Descrambler has achieved synchronization or not
 }
 
 class EthernetPCS(params: EthernetPCSParams, pBeatBytes: Int, sBeatBytes: Int) (implicit p: Parameters) extends Module {
