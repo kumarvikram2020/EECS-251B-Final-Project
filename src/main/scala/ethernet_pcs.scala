@@ -31,7 +31,7 @@ class EthernetPCSTopIO() extends Bundle {
     val tx_en = Input(Bool())                           // TX Enable
     val tx_er = Input(Bool())                           // TX Error
     val rx_symb_vector = Input(Vec(4, UInt(3.W)))       // Quinary symbols from PMA
-    val tx_mode = Intput(UInt(2.W))                     // Indicates sequence of code-groups the PCS should be transmitting
+    val tx_mode = Input(UInt(2.W))                     // Indicates sequence of code-groups the PCS should be transmitting
     val config = Input(Bool())                          // Indicates whether the PHY must operate as a MASTER PHY or as a SLAVE PHY
     val pcs_reset = Input(Bool())                       // PCS Reset Signal
     val loc_rcvr_status = Input(Bool())                 // Link reliability OK or NOT_OK
@@ -44,7 +44,7 @@ class EthernetPCSTopIO() extends Bundle {
     val rxd = Output(UInt(8.W))                          // RX Data
     val rx_dv = Output(Bool())                           // RX Data Valid
     val rx_er = Output(Bool())                           // RX Data Error
-    val tx_symb_vector = Output(Vec(4, UInt(3.W)))      // Quinary symbols to PMA
+    val tx_symb_vector = Output(Vec(4, UInt(3.W)))       // Quinary symbols to PMA
     val rem_rcvr_status = Output(Bool())                 // Indicate the status of the receive link at the remote PHY
     val scr_status = Output(Bool())                      // Descrambler has achieved synchronization or not
 }
