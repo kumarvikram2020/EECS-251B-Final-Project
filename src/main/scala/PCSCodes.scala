@@ -16,7 +16,7 @@ object PCSCodes {
         VecInit(0.S(3.W), -1.S(3.W), 1.S(3.W), 0.S(3.W)), VecInit(0.S(3.W), -1.S(3.W), 0.S(3.W), 1.S(3.W)),
 
         VecInit(-2.S(3.W), 2.S(3.W), 0.S(3.W), 0.S(3.W)), VecInit(-2.S(3.W), -2.S(3.W), 1.S(3.W), 1.S(3.W)),
-        VecInit(-2.S(3.W), -1.S(3.W), 11.S(3.W), 0.S(3.W)), VecInit(-2.S(3.W), -1.S(3.W), 0.S(3.W), 1.S(3.W)),
+        VecInit(-2.S(3.W), -1.S(3.W), 1.S(3.W), 0.S(3.W)), VecInit(-2.S(3.W), -1.S(3.W), 0.S(3.W), 1.S(3.W)),
 
         VecInit(0.S(3.W), 0.S(3.W), -2.S(3.W), 0.S(3.W)), VecInit(0.S(3.W), 0.S(3.W), -1.S(3.W), 1.S(3.W)),
         VecInit(0.S(3.W), 1.S(3.W), -1.S(3.W), 0.S(3.W)), VecInit(0.S(3.W), 1.S(3.W), -2.S(3.W), 1.S(3.W)),
@@ -247,7 +247,7 @@ object PCSCodes {
         VecInit(2.S(3.W), -2.S(3.W), 2.S(3.W), 2.S(3.W))
     )
 
-    def ESD2_EXT_ERR: Seq[Vec[SInt]] = Seq(
+    def ESD_EXT_ERR: Seq[Vec[SInt]] = Seq(
         VecInit(-2.S(3.W), 2.S(3.W), 2.S(3.W), 2.S(3.W))
     )
 
@@ -314,8 +314,8 @@ object PCSCodes {
         ESD2_EXT_2.map(refVec => vecEqual(symb, refVec)).reduce(_ || _)    
     }
 
-    def isESD2_EXT_ERR(symb: Vec[SInt]): Bool = {
-        ESD2_EXT_ERR.map(refVec => vecEqual(symb, refVec)).reduce(_ || _)    
+    def isESD_EXT_ERR(symb: Vec[SInt]): Bool = {
+        ESD_EXT_ERR.map(refVec => vecEqual(symb, refVec)).reduce(_ || _)    
     }
 
     def isIDLE(symb: Vec[SInt]): Bool = {
