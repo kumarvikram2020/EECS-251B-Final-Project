@@ -37,44 +37,53 @@ class EthernetPCSRXFSMTest extends AnyFlatSpec with ChiselScalatestTester {
       c.io.tx_er.poke(false.B)
       c.io.tx_en.poke(true.B)
       c.io.tx_symb_vector.ready.poke(true.B)
+      c.io.state_test.expect(0.U(4.W))
       c.clock.step(1)
 
       // 2) SSD1
       c.io.tx_symb_vector.ready.poke(true.B)
+      c.io.state_test.expect(1.U(4.W))
       c.clock.step(1)
 
       // 3) SSD2
       c.io.tx_symb_vector.ready.poke(true.B)
+      c.io.state_test.expect(2.U(4.W))
       c.clock.step(1)
 
       // 4) Transmit Data
       c.io.tx_symb_vector.ready.poke(true.B)
       c.io.tx_symb_vector.en.poke(false.B)
+      c.io.state_test.expect(6.U(4.W))
       c.clock.step(1)
 
       // 5) CSReset 1
       c.io.tx_symb_vector.ready.poke(true.B)
       c.io.col.expect(false.B)
+      c.io.state_test.expect(9.U(4.W))
       c.clock.step(1)
 
       // 6) CSReset 2
       c.io.tx_symb_vector.ready.poke(true.B)
       c.io.col.expect(false.B)
+      c.io.state_test.expect(10.U(4.W))
       c.clock.step(1)
 
       // 7) ESD1
       c.io.tx_symb_vector.ready.poke(true.B)
       c.io.col.expect(false.B)
+      c.io.state_test.expect(7.U(4.W))
       c.clock.step(1)
 
       // 8) ESD2 
       c.io.tx_symb_vector.ready.poke(true.B)
       c.io.col.expect(false.B)
+      c.io.state_test.expect(8.U(4.W))
       c.clock.step(1)
 
       // 9) Idle
       c.io.tx_symb_vector.ready.poke(true.B)
       c.io.col.expect(false.B)
+      c.io.state_test.expect(0.U(4.W))
       c.clock.step(1)
     }
   }

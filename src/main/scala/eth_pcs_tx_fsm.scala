@@ -194,6 +194,7 @@ class EthernetTXFSMIO() extends Bundle {
     // Output
     val col = Output(Bool())
     val tx_symb_vector = DecoupledIO(Vec(4, SInt(3.W)))
+    val state_test = Output(UInt(4.W))
 }
 
 class EthernetPCSTXFSM() extends Module {
@@ -203,6 +204,8 @@ class EthernetPCSTXFSM() extends Module {
     val sIdle :: ssd1 :: ssd2 :: ssd1Err :: ssd2Err :: transmitErr :: transmitData :: esd1 :: esd2 :: firstCsReset :: secondCsReset :: Nil = Enum(11) 
     val state = RegInit(sIdle)
     val idleCntr = RegInit(0.U(4.W))
+
+    io.state_test := state
 
     // helpers and registers
     val PUDR = io.tx_symb_vector.fire
