@@ -2,11 +2,11 @@ package ethernet_pcs
 
 import chisel3._
 import chisel3.util._
-import org.chipsalliance.cde.config.{Parameters, Field, Config}
-import freechips.rocketchip.diplomacy._
-import freechips.rocketchip.regmapper._
-import freechips.rocketchip.subsystem._
-import freechips.rocketchip.tilelink._
+//import org.chipsalliance.cde.config.{Parameters, Field, Config}
+//import freechips.rocketchip.diplomacy._
+//import freechips.rocketchip.regmapper._
+//import freechips.rocketchip.subsystem._
+//import freechips.rocketchip.tilelink._
 
 import ethernet_pcs._
 import PCSCodes._
@@ -27,11 +27,11 @@ class EthernetTXFSMIO() extends Bundle {
 
     // Output
     val transmit1000BT = Output(Bool())
-    val col = Output(Bool)
+    val col = Output(Bool())
     val tx_symb_vector = DecoupledIO(Vec(4, SInt(3.W)))
 }
 
-class SideStreamScambler() extends Module {
+class SideStreamScrambler() extends Module {
     val io = IO(new Bundle { 
         val enable = Input(Bool())
         val config = Input(Bool())
@@ -72,6 +72,7 @@ class SideStreamScambler() extends Module {
     val tx_enablen_2 = RegInit(false.B)
 
     val Scn = Wire(UInt(8.W))
+    val Sdn = Wire(UInt(9.W))
 
     when (io.enable) {
         when (io.config) {
@@ -88,14 +89,14 @@ class SideStreamScambler() extends Module {
     Sgn := Cat(Yn, scr(4) ^ scr(8) ^ scr(9) ^ scr(13), scr(7) ^ scr(11) ^ scr(17) ^ scr(21), scr(10) ^ scr(14) ^ scr(15) ^ scr(19) ^ scr(20) ^ scr(24) ^ scr(25) ^ scr(29))
 
     // Scn[7:4]
-    when (tx_enn_2 === 1.U) {
+    when (io.tx_enn_2 === 1.U) {
         Scn(7, 4) := Sxn(3, 0)
     }.otherwise {
         Scn(7, 4) := 0.U(4.W)
     }
 
     // Scn[3:1]
-    when (tx_mode === SEND_Z) {
+    when (io.tx_mode === SEND_Z) {
         Syn(3, 1) := 0.U(3.W)
     }.elsewhen ((n - n0) % 2.U === 0.U) {
         Scn(3, 1) := Syn(3, 1)
@@ -104,17 +105,19 @@ class SideStreamScambler() extends Module {
     }
 
     // Scn[0]
-    when (tx_mode === SEND_Z) {
+    when (io.tx_mode === SEND_Z) {
         Scn(0) := 0.U(1.W)
     }.otherwise {
         Scn(0) := Syn(0)
     }
 
-    val csresetn = (tx_enablen_2 === 1.U(1.W)) && (tx_en === 0.U(1.W))
+    val csresetn = (io.tx_enn_2 === 1.U(1.W)) && (io.enable === 0.U(1.W))
     val cext_n = Wire(UInt(1.W))
     val cext_err_n = Wire(UInt(1.W))
 
+
     // Logic for Sdn[8]
+
     Sdn(8) := csn(0) // Sdn[8] is derived from csn[0]
 
     // Logic for Sdn[7:6]
@@ -199,6 +202,7 @@ class EthernetPCSTXFSM() extends Module {
     val sIdle :: ssd1 :: ssd2 :: ssd1Err :: ssd2Err :: transmitErr :: transmitData :: cExt :: errChck :: firstCsExt :: secondCsExt :: esd1 :: esd2_ext_0 :: esd2_ext_1 :: esd1_w_ext :: esd2_w_ext :: firstCsReset :: secondCsReset :: Nil = Enum(19) 
     val state = RegInit(sIdle)
     val idleCntr = RegInit(0.U(4.W))
+
     // helpers and registers
     val PUDR = io.tx_symb_vector.ready && io.tx_symb_vector.valid
     val tx_symb_vector_current = io.tx_symb_vector.bits
@@ -206,16 +210,17 @@ class EthernetPCSTXFSM() extends Module {
     val tx_enablen_1 = RegInit(false.B)
     val tx_enablen_2 = RegInit(false.B)
 
-    val loc_lpi_req := RegInit(false.B)
+    val loc_lpi_req = RegInit(false.B)
     val sLpiOff :: sLpiOn :: Nil = Enum(2)
     val loc_lpi_req_state = RegInit(sLpiOff)
 
-    tx_enablen_1 := io.tx_en 
+    tx_enablen_1 := io.tx_en
     tx_enablen_2 := tx_enablen_1
 
     // state outputs
     // default values
-    val transmit1000BTWire := false.B
+    val transmit1000BTWire = Wire(Bool())
+    transmit1000BTWire := false.B
 
     io.transmit1000BT := transmit1000BTWire
     io.col := false.B
@@ -225,8 +230,8 @@ class EthernetPCSTXFSM() extends Module {
     sideStreamScrambler.io.enable := io.tx_en 
     sideStreamScrambler.io.config := io.config
     sideStreamScrambler.io.resetScrambler := io.pcs_reset 
-    sideStreamScrambler.io.tx_mode := indication 
-    sideStreamScrambler.io.tx_enablen_2 := tx_enablen_2
+    sideStreamScrambler.io.tx_mode := io.indication 
+    sideStreamScrambler.io.tx_enn_2 := tx_enablen_2
     sideStreamScrambler.io.txd := io.txd 
     sideStreamScrambler.io.tx_err := io.tx_er 
     sideStreamScrambler.io.loc_lpi_req := loc_lpi_req
@@ -236,29 +241,35 @@ class EthernetPCSTXFSM() extends Module {
 
     val idx = Wire(UInt(9.W))
     val col = Wire(UInt(3.W))
-    when(sdn(6, 8) === 0.U) {
+    when(sideStreamScrambler.io.sdn(6, 8) === 0.U) {
         col := 0.U
-    }.elsewhen(sdn(6, 8) === 2.U) {
+    }.elsewhen(sideStreamScrambler.io.sdn(6, 8) === 2.U) {
         col := 1.U
-    }.elsewhen(sdn(6, 8) === 4.U) {
+    }.elsewhen(sideStreamScrambler.io.sdn(6, 8) === 4.U) {
         col := 2.U
-    }.elsewhen(sdn(6, 8) === 5.U) {
+    }.elsewhen(sideStreamScrambler.io.sdn(6, 8) === 5.U) {
         col := 3.U
     }
 
-    idx := (io.sdn(5, 0) - 31.U) + col
+    idx := (sideStreamScrambler.io.sdn(5, 0) - 31.U) + col
+
+    val selectedVec = Mux(idx === 0.U, DATA(0),
+              Mux(idx === 1.U, DATA(1),
+              Mux(idx === 2.U, DATA(2),
+              Mux(idx === 3.U, DATA(3), // Continue as needed
+              DATA(0)))))  // Default value if idx doesn't match any case
 
     switch(state) {
         is(sIdle) {
-           io.tx_symb_vector.bits := IDLE(idleCounter)
+           io.tx_symb_vector.bits := IDLE(0)
            io.tx_symb_vector.valid := true.B
            when (io.tx_symb_vector.ready) {
-               idleCounter := idleCounter + 1.U
+               idleCntr := idleCntr + 1.U
            }
         }
         is(ssd1){
            transmit1000BTWire := true.B
-           io.col := io.receive1000BT 
+           io.col := io.receive1000BT
            io.tx_symb_vector.bits := SSD1(0)
         }
         is(ssd2){
@@ -279,15 +290,15 @@ class EthernetPCSTXFSM() extends Module {
             io.tx_symb_vector.bits := XMT_ERR(0)
         }
         is(transmitData){
-            io.col := io.receive1000BT 
-            io.tx_symb_vector.bits := Data(idx)
+            io.col := io.receive1000BT
+            io.tx_symb_vector.bits := selectedVec
         }
         is(cExt){
-            io.col := io.receive1000BT 
+            io.col := io.receive1000BT
             when (io.txd === "0x0F".U(8.W)) {
-                io.tx_symb_vector.bits := CSEXTEND
+                io.tx_symb_vector.bits := CSEXTEND(0)
             }.otherwise {
-                io.tx_symb_vector.bits := CSEXTEND_ERR
+                io.tx_symb_vector.bits := CSEXTEND_ERR(0)
             }
         }
         is(errChck){
@@ -296,58 +307,58 @@ class EthernetPCSTXFSM() extends Module {
         is(firstCsExt){
             io.col := io.receive1000BT 
             when (io.txd === "0x0F".U(8.W)) {
-                io.tx_symb_vector.bits := CSEXTEND
+                io.tx_symb_vector.bits := CSEXTEND(0)
             }.otherwise {
-                io.tx_symb_vector.bits := CSEXTEND_ERR
+                io.tx_symb_vector.bits := CSEXTEND_ERR(0)
             }
         }
         is(secondCsExt){
             io.col := io.receive1000BT 
             when (io.txd === "0x0F".U(8.W)) {
-                io.tx_symb_vector.bits := ESD1
+                io.tx_symb_vector.bits := ESD1(0)
             }.otherwise {
-                io.tx_symb_vector.bits := CSEXTEND_ERR
+                io.tx_symb_vector.bits := CSEXTEND_ERR(0)
             }
         }
         is(esd1){
             io.col := io.receive1000BT 
             transmit1000BTWire := false.B 
-            io.tx_symb_vector.bits := ESD1
+            io.tx_symb_vector.bits := ESD1(0)
         }
         is(esd2_ext_0){
             io.col := false.B 
-            io.tx_symb_vector.bits := ESD2_EXT_0
+            io.tx_symb_vector.bits := ESD2_EXT_0(0)
         }
         is(esd2_ext_1){
             transmit1000BTWire := false.B 
             io.col := false.B 
-            io.tx_symb_vector.bits := ESD2_EXT_1
+            io.tx_symb_vector.bits := ESD2_EXT_1(0)
         }
         is(esd1_w_ext){
             io.col := io.receive1000BT 
             when (io.txd === "0x0F".U(8.W)) {
-                io.tx_symb_vector.bits := ESD1
+                io.tx_symb_vector.bits := ESD1(0)
             }.otherwise {
-                io.tx_symb_vector.bits := ESD_EXT_ERR
+                io.tx_symb_vector.bits := ESD_EXT_ERR(0)
             }
         }
         is(esd2_w_ext){
             io.col := io.receive1000BT 
             when (io.txd === "0x0F".U(8.W)) {
-                io.tx_symb_vector.bits := ESD2_EXT_2
+                io.tx_symb_vector.bits := ESD2_EXT_2(0)
             }.otherwise {
-                io.tx_symb_vector.bits := ESD_EXT_ERR
+                io.tx_symb_vector.bits := ESD_EXT_ERR(0)
             }
         }
         is(firstCsReset){
             transmit1000BTWire := false.B 
             io.col := false.B 
-            io.tx_symb_vector.bits := CSRESET
+            io.tx_symb_vector.bits := CSRESET(0)
         }
         is(secondCsReset){
             transmit1000BTWire := false.B 
             io.col := false.B 
-            io.tx_symb_vector.bits := ESD1
+            io.tx_symb_vector.bits := ESD1(0)
         }
     }
 
@@ -400,7 +411,7 @@ class EthernetPCSTXFSM() extends Module {
         is(errChck){
             when (io.tx_en === true.B && io.tx_er === true.B) {
                 state := transmitErr
-            }.elsewhen (io.tx_en === true.B && io.ex_er === false.B) {
+            }.elsewhen (io.tx_en === true.B && io.tx_er === false.B) {
                 state := transmitData
             }.elsewhen (io.tx_en === false.B && io.tx_er === true.B) {
                 state := firstCsExt
@@ -428,12 +439,12 @@ class EthernetPCSTXFSM() extends Module {
         is(esd2_ext_0) {
             state := sIdle
         }
-        is (esd2_ext1) {
+        is (esd2_ext_1) {
             state := sIdle
         }
         is (esd1_w_ext) {
             when (io.tx_er === false.B) {
-                state := esd2_ext1
+                state := esd2_ext_1
             }.elsewhen (io.tx_er === true.B) {
                 state := esd2_w_ext
             }

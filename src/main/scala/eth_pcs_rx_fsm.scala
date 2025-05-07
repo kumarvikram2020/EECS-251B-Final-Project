@@ -2,11 +2,11 @@ package ethernet_pcs
 
 import chisel3._
 import chisel3.util._
-import org.chipsalliance.cde.config.{Parameters, Field, Config}
-import freechips.rocketchip.diplomacy._
-import freechips.rocketchip.regmapper._
-import freechips.rocketchip.subsystem._
-import freechips.rocketchip.tilelink._
+//import org.chipsalliance.cde.config.{Parameters, Field, Config}
+//import freechips.rocketchip.diplomacy._
+//import freechips.rocketchip.regmapper._
+//import freechips.rocketchip.subsystem._
+//import freechips.rocketchip.tilelink._
 
 import ethernet_pcs._
 import PCSCodes._
