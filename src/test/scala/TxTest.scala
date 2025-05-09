@@ -82,7 +82,7 @@ class EthernetPCSRXFSMTest extends AnyFlatSpec with ChiselScalatestTester {
 
       // 9) Idle
       c.io.tx_symb_vector.ready.poke(true.B)
-      c.io.col.expect(false.B)
+      c.io.col.expect(false.B
       c.io.state_test.expect(0.U(4.W))
       c.clock.step(1)
     }
