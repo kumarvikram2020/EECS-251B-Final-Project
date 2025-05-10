@@ -82,7 +82,7 @@ object PCSCodes {
         VecInit(1.S(3.W), 0.S(3.W), 0.S(3.W), -1.S(3.W)), VecInit(1.S(3.W), 0.S(3.W), 1.S(3.W), -2.S(3.W)),
 
         VecInit(-1.S(3.W), 1.S(3.W), 1.S(3.W), -1.S(3.W)), VecInit(-1.S(3.W), 1.S(3.W), 0.S(3.W), -2.S(3.W)),
-        VecInit(-1.S(3.W), 0.S(3.W), 0.S(3.W), -1.S(3.W)), VecInit(-11.S(3.W), 0.S(3.W), 1.S(3.W), -2.S(3.W)),
+        VecInit(-1.S(3.W), 0.S(3.W), 0.S(3.W), -1.S(3.W)), VecInit(-1.S(3.W), 0.S(3.W), 1.S(3.W), -2.S(3.W)),
 
         VecInit(1.S(3.W), -1.S(3.W), 1.S(3.W), -1.S(3.W)), VecInit(1.S(3.W), -1.S(3.W), 0.S(3.W), -2.S(3.W)),
         VecInit(1.S(3.W), -2.S(3.W), 0.S(3.W), -1.S(3.W)), VecInit(1.S(3.W), -2.S(3.W), 1.S(3.W), -2.S(3.W)),

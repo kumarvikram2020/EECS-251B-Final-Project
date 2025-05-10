@@ -2,11 +2,7 @@ package ethernet_pcs
 
 import chisel3._
 import chisel3.util._
-//import org.chipsalliance.cde.config.{Parameters, Field, Config}
-//import freechips.rocketchip.diplomacy._
-//import freechips.rocketchip.regmapper._
-//import freechips.rocketchip.subsystem._
-//import freechips.rocketchip.tilelink._
+import _root_.circt.stage.ChiselStage
 
 import ethernet_pcs._
 import PCSCodes._
@@ -94,13 +90,6 @@ class EthernetPCSRXFSM() extends Module {
             io.rxd := io.from_decoder_symbols         
         }
         is(sCS_RESET_1){
-            io.receive1000BT := false.B
-            io.rxerror_status := false.B
-            io.rx_dv := false.B
-            io.rx_er := false.B
-            io.rxd := io.from_decoder_symbols     
-        }
-        is(sCS_RESET_2){
             io.receive1000BT := false.B
             io.rxerror_status := false.B
             io.rx_dv := false.B
@@ -217,3 +206,14 @@ class EthernetPCSRXFSM() extends Module {
         }
     }
 }
+
+/**
+ * Generate Verilog sources and save it in file Elaborate.v
+ */
+object GenerateRXFSM extends App {
+ ChiselStage.emitSystemVerilogFile(
+    new EthernetPCSRXFSM,
+    firtoolOpts = Array("-disable-all-randomization", "-strip-debug-info")
+  )
+}
+
