@@ -4,29 +4,11 @@ import chisel3._
 import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
 import PCSCodes._
+import org.scalatest.matchers.should.Matchers
+import scala.util.Random
 
-class EthernetPCSRXFSMTest extends AnyFlatSpec with ChiselScalatestTester {
-  behavior of "EthernetPCSRXFSM"
-
-  // pick one representative symbol from each code group
-  val idleSym    = IDLE.head
-  val ssd1Sym    = SSD1.head
-  val ssd2Sym    = SSD2.head
-  val dataSym    = DATA.head
-  val csResetSym = CSRESET.head
-  val xmtErrSym  = XMT_ERR.head
-
-  // for BAD_SSD we just need something that is not SSD2
-  val badSym     = idleSym
-  // for PREMATURE_END in RECEIVE, pick any valid that is not DATA, not CSRESET, not XMT_ERR
-  val otherSym   = ssd2Sym
-
-  // helper to poke one cycle of tx_symb_vector
-  private def pokeSym(c: EthernetPCSTXFSM, sym: Vec[SInt]) = {
-    c.io.rx_symb_vector.valid.poke(true.B)
-    c.io.rx_symb_vector.bits.poke(sym)
-    c.clock.step(1)
-  }
+class EthernetPCSTXFSMTest extends AnyFlatSpec with ChiselScalatestTester {
+  behavior of "EthernetPCSTXFSM"
 
   it should "go through Idle -> SSD1 -> SSD2 -> Transmit Data -> CSReset 1 -> CSReset 2 -> ESD1 -> ESD2 -> Idle" in {
     test(new EthernetPCSTXFSM()) { c =>
@@ -52,7 +34,7 @@ class EthernetPCSRXFSMTest extends AnyFlatSpec with ChiselScalatestTester {
 
       // 4) Transmit Data
       c.io.tx_symb_vector.ready.poke(true.B)
-      c.io.tx_symb_vector.en.poke(false.B)
+      c.io.tx_en.poke(false.B)
       c.io.state_test.expect(6.U(4.W))
       c.clock.step(1)
 
@@ -82,87 +64,108 @@ class EthernetPCSRXFSMTest extends AnyFlatSpec with ChiselScalatestTester {
 
       // 9) Idle
       c.io.tx_symb_vector.ready.poke(true.B)
-      c.io.col.expect(false.B
+      c.io.col.expect(false.B)
       c.io.state_test.expect(0.U(4.W))
       c.clock.step(1)
     }
   }
 
-/*
-  it should "flag BAD_SSD when the second start-symbol is wrong" in {
+  "EthernetPCSTXFSM" should "not deadlock when given random inputs" in {
     test(new EthernetPCSTXFSM()) { c =>
-      c.io.config.poke(false.B)
-      c.io.pcs_reset.poke(false.B)
+      val rnd = new scala.util.Random(1234) 
+      for (_ <- 0 until 100) {
+        c.io.config.poke(rnd.nextBoolean().B)
+        c.io.pcs_reset.poke(rnd.nextBoolean().B)
+        c.io.tx_er.poke(rnd.nextBoolean().B)
+        c.io.tx_en.poke(rnd.nextBoolean().B)
+        c.io.txd.poke(rnd.nextInt(256).U)
+        c.io.receive1000BT.poke(rnd.nextBoolean().B)
+        c.io.tx_symb_vector_encoded(0).poke((rnd.nextInt(5) - 2).S(3.W))
+        c.io.tx_symb_vector_encoded(1).poke((rnd.nextInt(5) - 2).S(3.W))
+        c.io.tx_symb_vector_encoded(2).poke((rnd.nextInt(5) - 2).S(3.W))
+        c.io.tx_symb_vector_encoded(3).poke((rnd.nextInt(5) - 2).S(3.W))
+        c.io.tx_symb_vector.ready.poke(true.B)
 
-      // first SSD1
-      pokeSym(c, ssd1Sym)
-      // second symbol is not SSD2 → BAD_SSD
-      pokeSym(c, badSym)
+        val stateTest = c.io.state_test.peek()
+        println(s"State Test Output is: {$stateTest}")
 
-      c.io.receive1000BT .expect(true.B)
-      c.io.rxerror_status.expect(true.B)
-      c.io.rx_er         .expect(true.B)
-      c.io.rxd           .expect("h0E".U)
+        c.clock.step(1)
+      }
     }
   }
 
-  it should "inject DATA_ERROR and then recover to RECEIVE" in {
+  "EthernetPCSTXFSM" should "run the error sequence (tx_er path) through all states back to IDLE" in {
     test(new EthernetPCSTXFSM()) { c =>
-      c.io.config.poke(false.B)
-      c.io.pcs_reset.poke(false.B)
+      c.io.tx_en.poke(true.B)
+      c.io.tx_er.poke(true.B)
+      c.io.tx_symb_vector.ready.poke(true.B)
+      c.io.tx_er.poke(true.B)
+      c.io.state_test.expect(0.U)
+      c.clock.step(1)
 
-      // get into RECEIVE
-      pokeSym(c, ssd1Sym); pokeSym(c, ssd2Sym); pokeSym(c, ssd2Sym)
+      c.io.state_test.expect(3.U)
+      c.clock.step(1)
 
-      // inject XMT_ERR
-      pokeSym(c, xmtErrSym)
-      c.io.receive1000BT.expect(true.B)
-      c.io.rx_dv.expect(true.B)
-      c.io.rx_er.expect(true.B)
-      c.io.rxd.expect("h55".U)
+      c.io.state_test.expect(4.U)
+      c.clock.step(1)
 
-      // next valid symbol → back to RECEIVE
-      pokeSym(c, ssd2Sym)
-      c.io.receive1000BT.expect(true.B)
-      c.io.rx_dv.expect(true.B)
+      c.io.state_test.expect(5.U)
+      for (_ <- 0 until 10) {
+        c.clock.step(1)
+        c.io.state_test.expect(5.U)
+      }
+      c.io.tx_er.poke(false.B)
+      c.clock.step(1)
+
+      c.io.state_test.expect(6.U)
+      c.io.tx_en.poke(false.B)
+      c.clock.step(1)
+
+      c.io.state_test.expect(9)
+      c.clock.step(1)
+
+      c.io.state_test.expect(10)
+      c.clock.step(1)
+
+      c.io.state_test.expect(7)
+      c.clock.step(1)
+
+      c.io.state_test.expect(8)
+      c.clock.step(1)
+
+      c.io.state_test.expect(0)
     }
   }
 
-  it should "go through CS_RESET → ESD_IDLE → IDLE after RECEIVE" in {
+  "EthernetPCSTXFSM" should "stall the FSM when PUDR is LOW" in {
     test(new EthernetPCSTXFSM()) { c =>
-      c.io.config.poke(false.B)
-      c.io.pcs_reset.poke(false.B)
+      c.io.tx_en.poke(true.B)
+      c.io.tx_er.poke(false.B)
+      c.io.tx_symb_vector.ready.poke(false.B)
 
-      // get into RECEIVE
-      pokeSym(c, ssd1Sym); pokeSym(c, ssd2Sym); pokeSym(c, ssd2Sym)
-
-      // CS_RESET_1
-      pokeSym(c, csResetSym)
-      c.io.receive1000BT .expect(false.B)
-      c.io.rx_dv.expect(false.B)
-      c.io.rx_er.expect(false.B)
-      c.io.rxd.expect(0.U)
-
-      // CS_RESET_2
-      pokeSym(c, csResetSym)
-      c.io.receive1000BT.expect(false.B)
-      c.io.rx_dv.expect(false.B)
-      c.io.rx_er.expect(false.B)
-      c.io.rxd.expect(0.U)
-
-      // ESD_IDLE_1
-      pokeSym(c, csResetSym)
-      c.io.receive1000BT.expect(false.B)
-      c.io.rx_dv.expect(false.B)
-      c.io.rx_er.expect(false.B)
-      c.io.rxd.expect(0.U)
-
-      // finally see IDLE
-      pokeSym(c, idleSym)
-      c.io.receive1000BT.expect(false.B)
-      c.io.rx_dv.expect(false.B)
-      c.io.rx_er.expect(false.B)
+      for (_ <- 0 until 10) {
+        c.clock.step(1)
+        c.io.state_test.expect(0.U)
+      }
     }
   }
-  */
+
+  "EthernetPCSTXFSM" should "stay in SSD2 when tx_er is high but tx_en is deasserted" in {
+    test(new EthernetPCSTXFSM()) { c =>
+      c.io.tx_en.poke(true.B)
+      c.io.tx_er.poke(false.B)
+      c.io.tx_symb_vector.ready.poke(true.B)
+
+      c.clock.step(1)
+      c.clock.step(1)
+      c.io.tx_en.poke(false.B)
+      c.io.tx_er.poke(true.B)
+      c.io.state_test.expect(2.U)
+
+      for (_ <- 0 until 5) {
+        c.clock.step(1)
+        c.io.state_test.expect(2.U)
+      }
+    }
+  }
 }
