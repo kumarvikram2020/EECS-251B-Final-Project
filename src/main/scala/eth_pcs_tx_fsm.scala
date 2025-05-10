@@ -42,14 +42,50 @@ class EthernetPCSTXFSM() extends Module {
 
     io.col := false.B
     io.tx_symb_vector.valid := false.B
-    io.tx_symb_vector.bits(0) := 0.S
-    io.tx_symb_vector.bits(1) := 0.S
-    io.tx_symb_vector.bits(2) := 0.S
-    io.tx_symb_vector.bits(3) := 0.S
+
+    //val tx_enablen_1 = RegInit(false.B)
+    //val tx_enablen_2 = RegInit(false.B)
+
+    //val loc_lpi_req = RegInit(false.B)
+    //val sLpiOff :: sLpiOn :: Nil = Enum(2)
+    //val loc_lpi_req_state = RegInit(sLpiOff)
+
+    //tx_enablen_1 := io.tx_en
+    //tx_enablen_2 := tx_enablen_1
+    // Scrambler Inputs & Outputs
+    /*sideStreamScrambler.io.enable := io.tx_en 
+    sideStreamScrambler.io.config := io.config
+    sideStreamScrambler.io.resetScrambler := io.pcs_reset 
+    sideStreamScrambler.io.tx_mode := io.indication 
+    sideStreamScrambler.io.tx_enn_2 := tx_enablen_2
+    sideStreamScrambler.io.txd := io.txd 
+    sideStreamScrambler.io.tx_err := io.tx_er 
+    sideStreamScrambler.io.loc_lpi_req := loc_lpi_req
+    sideStreamScrambler.io.loc_rcvr_status := io.loc_rcvr_status
+    sideStreamScrambler.io.loc_update_done := io.loc_update_done
 
 
-    io.tx_symb_vector.bits := VecInit(Seq.fill(4)(0.S(3.W)))
+    val idx = Wire(UInt(9.W))
+    val col = Wire(UInt(3.W))
+    when(sideStreamScrambler.io.sdn(6, 8) === 0.U) {
+        col := 0.U
+    }.elsewhen(sideStreamScrambler.io.sdn(6, 8) === 2.U) {
+        col := 1.U
+    }.elsewhen(sideStreamScrambler.io.sdn(6, 8) === 4.U) {
+        col := 2.U
+    }.elsewhen(sideStreamScrambler.io.sdn(6, 8) === 5.U) {
+        col := 3.U
+    }
 
+    idx := (sideStreamScrambler.io.sdn(5, 0) - 31.U) + col
+
+    val selectedVec = Mux(idx === 0.U, DATA(0),
+              Mux(idx === 1.U, DATA(1),
+              Mux(idx === 2.U, DATA(2),
+              Mux(idx === 3.U, DATA(3), // Continue as needed
+              DATA(0)))))  // Default value if idx doesn't match any case*/
+
+    // Assign Signals Per State
     switch(state) {
         is(sIdle) {
            transmit1000BTWire := false.B 
@@ -207,14 +243,25 @@ class EthernetPCSTXFSM() extends Module {
         }
     }
 
-}
+    /*switch (loc_lpi_req_state) {
+        is(sLpiOff) {
+            when (io.tx_en === false.B && io.tx_er === true.B && io.txd === "0x01".U(8.W) && transmit1000BTWire === false.B) {
+                loc_lpi_req_state := sLpiOn
+            }
+        }
+        is (sLpiOn) {
+            when (io.tx_en === true.B && io.tx_er === false.B && io.txd =/= "0x01".U(8.W) && transmit1000BTWire === true.B) {
+                loc_lpi_req_state := sLpiOff
+            }
+        }
+    }
 
-/**
- * Generate Verilog sources and save it in file Elaborate.v
- */
-object GenerateTXFSM extends App {
- ChiselStage.emitSystemVerilogFile(
-    new EthernetPCSTXFSM,
-    firtoolOpts = Array("-disable-all-randomization", "-strip-debug-info")
-  )
+    switch (loc_lpi_req_state) {
+        is(sLpiOff) {
+            loc_lpi_req := false.B
+        }
+        is (sLpiOn) {
+            loc_lpi_req := true.B
+        }
+    }*/
 }
