@@ -2,11 +2,12 @@ package ethernet_pcs
 
 import chisel3._
 import chisel3.util._
-import org.chipsalliance.cde.config.{Parameters, Field, Config}
-import freechips.rocketchip.diplomacy._
-import freechips.rocketchip.regmapper._
-import freechips.rocketchip.subsystem._
-import freechips.rocketchip.tilelink._
+import _root_.circt.stage.ChiselStage
+//import org.chipsalliance.cde.config.{Parameters, Field, Config}
+//import freechips.rocketchip.diplomacy._
+//import freechips.rocketchip.regmapper._
+//import freechips.rocketchip.subsystem._
+//import freechips.rocketchip.tilelink._
 
 import ethernet_pcs._
 import PCSCodes._
@@ -20,7 +21,6 @@ class EthernetTXFSMIO() extends Bundle {
     val tx_er = Input(Bool())
     val tx_en = Input(Bool())
     val txd = Input(UInt(8.W))
-    val sdn = Input(UInt(9.W))
     val receive1000BT = Input(Bool())
     val tx_symb_vector_encoded = Input(Vec(4, SInt(3.W)))
 
@@ -32,7 +32,6 @@ class EthernetTXFSMIO() extends Bundle {
 
 class EthernetPCSTXFSM() extends Module {
     val io = IO(new EthernetTXFSMIO())
-    val sideStreamScrambler = Module(new SideStreamScrambler())
     
     val sIdle :: ssd1 :: ssd2 :: ssd1Err :: ssd2Err :: transmitErr :: transmitData :: esd1 :: esd2 :: firstCsReset :: secondCsReset :: Nil = Enum(11) 
     val state = RegInit(sIdle)
@@ -46,6 +45,7 @@ class EthernetPCSTXFSM() extends Module {
 
     io.col := false.B
     io.tx_symb_vector.valid := false.B
+    io.tx_symb_vector.bits := VecInit(Seq.fill(4)(0.S(3.W)))
 
     // Assign Signals Per State
     switch(state) {
@@ -87,22 +87,22 @@ class EthernetPCSTXFSM() extends Module {
         is(esd1){
             transmit1000BTWire := false.B
             io.col := false.B 
-            io.tx_symb_vector.bits.enq(ESD1(0))
+            io.tx_symb_vector.enq(ESD1(0))
         }
         is(esd2) {
             transmit1000BTWire := false.B
             io.col := false.B 
-            io.tx_symb_vector.bits.enq(ESD2(0))
+            io.tx_symb_vector.enq(ESD2(0))
         }
         is(firstCsReset){
             transmit1000BTWire := false.B
             io.col := false.B 
-            io.tx_symb_vector.bits.enq(CSRESET(0))
+            io.tx_symb_vector.enq(CSRESET(0))
         }
         is(secondCsReset){
             transmit1000BTWire := false.B
             io.col := false.B 
-            io.tx_symb_vector.bits.enq(CSRESET(0))
+            io.tx_symb_vector.enq(CSRESET(0))
         }
     }
 
@@ -200,8 +200,15 @@ class EthernetPCSTXFSM() extends Module {
             when (PUDR) {
                 state := esd1
             }.otherwise {
-                stater := secondCsReset
+                state := secondCsReset
             }
         }
     }
+}
+
+object GenerateTXFSM extends App {
+ ChiselStage.emitSystemVerilogFile(
+    new EthernetPCSTXFSM,
+    firtoolOpts = Array("-disable-all-randomization", "-strip-debug-info")
+  )
 }
